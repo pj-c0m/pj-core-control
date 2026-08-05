@@ -1,0 +1,7 @@
+services:
+  pj-core-control:
+    build: .
+    container_name: pj-core-control
+    restart: unless-stopped
+    ports:
+      - "8088:80"

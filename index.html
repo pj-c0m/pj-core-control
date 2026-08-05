@@ -1,0 +1,155 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PJ-CORE Control</title><style>
+:root{color-scheme:dark;--bg:#080b10;--panel:#10151d;--line:#232b38;--text:#edf2f8;--muted:#8d99aa;--accent:#4c8dff}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,system-ui,sans-serif;color:var(--text);overflow-x:hidden}
+
+/* === AURORA BACKGROUND (lock screen) === */
+#aurora-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* === DOT FIELD (dashboard bg) === */
+#dotfield-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5}
+
+/* === LOCK SCREEN === */
+#lock-screen{position:fixed;inset:0;background:rgba(8,11,16,.55);backdrop-filter:blur(2px);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#lock-screen h2{margin:0;font-size:clamp(22px,5vw,32px);letter-spacing:2px;background:linear-gradient(90deg,#4c8dff,#69d5ff,#b14cff,#4c8dff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:gradient-shift 4s linear infinite}
+@keyframes gradient-shift{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+#lock-screen .hint{margin:0;color:var(--muted);font-size:14px;text-align:center;padding:0 20px}
+#pin-dots{display:flex;gap:16px;margin:8px 0 4px}
+#pin-dots span{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);background:#0c1118;transition:.2s}
+#pin-dots span.filled{background:var(--accent);border-color:#69d5ff;box-shadow:0 0 12px #4c8dff80,0 0 4px #69d5ff}
+#keypad{display:grid;grid-template-columns:repeat(3,72px);grid-template-rows:repeat(4,72px);gap:14px;margin-top:10px}
+.key{width:72px;height:72px;border-radius:50%;border:1px solid var(--line);background:rgba(17,24,36,.7);backdrop-filter:blur(8px);color:var(--text);font-size:28px;font-weight:600;display:grid;place-items:center;cursor:pointer;transition:.15s;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.key:hover{border-color:var(--accent);box-shadow:0 0 20px #4c8dff30}
+.key:active{background:var(--accent);color:#fff;transform:scale(.92);border-color:#69d5ff;box-shadow:0 0 25px #4c8dff60}
+.key-blank{visibility:hidden}
+.key-del{font-size:24px;color:var(--muted)}
+#pattern-error{margin:0;color:#ff6b6b;font-size:14px;opacity:0;transition:opacity .3s;height:22px;font-weight:600}
+#pattern-error.show{opacity:1}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px)}40%{transform:translateX(12px)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
+#pin-dots.shake,#keypad.shake{animation:shake .45s ease}
+
+/* === DASHBOARD === */
+.app{min-height:100vh;padding:18px;display:none;position:relative;z-index:1}
+.app.unlocked{display:block;animation:fadeIn .6s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+.brand h1{font-size:clamp(22px,3vw,38px);margin:0;position:relative;background:linear-gradient(110deg,var(--text) 35%,#69d5ff 50%,var(--text) 65%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shine 5s linear infinite}
+@keyframes shine{0%{background-position:200% 50%}100%{background-position:-200% 50%}}
+.brand p{margin:4px 0;color:var(--muted)}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+button,select,input{background:#111824;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 12px;transition:.2s}
+button:hover,select:hover,input:hover{border-color:#3a4658}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:rgba(16,21,29,.8);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:16px;padding:14px;transition:.3s}
+.stat:hover{border-color:var(--accent);box-shadow:0 0 20px #4c8dff20}
+.stat b{font-size:24px}
+.stat span{display:block;color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-flow:dense;gap:12px}
+.card{position:relative;background:linear-gradient(155deg,rgba(20,27,38,.8),rgba(12,17,24,.8));backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:20px;padding:16px;overflow:hidden;transition:.45s cubic-bezier(.2,.8,.2,1);box-shadow:0 10px 35px #0004}
+.card::before{content:'';position:absolute;inset:0;border-radius:20px;padding:1px;background:linear-gradient(135deg,transparent 40%,rgba(76,141,255,.4),transparent 60%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:.4s;pointer-events:none}
+.card:hover{transform:translateY(-3px);border-color:#3a4658;box-shadow:0 15px 45px #0006,0 0 30px #4c8dff10}
+.card:hover::before{opacity:1}
+.active{grid-column:span 6;min-height:260px}
+.recent{grid-column:span 4;min-height:210px}
+.cooling{grid-column:span 3;min-height:165px}
+.dormant{grid-column:span 2;min-height:120px}
+.archived{grid-column:span 1;min-height:88px;padding:12px}
+.expanded{grid-column:span 12!important;min-height:280px!important}
+.top{display:flex;gap:12px;align-items:flex-start}
+.icon{width:42px;height:42px;border-radius:14px;background:#182231;display:grid;place-items:center;font-size:24px;transition:.3s}
+.card:hover .icon{transform:scale(1.1);box-shadow:0 0 15px #4c8dff30}
+.archived .icon{width:34px;height:34px;font-size:20px}
+.title{font-weight:800;font-size:18px}
+.meta{color:var(--muted);font-size:12px;margin-top:5px}
+.badge{margin-left:auto;border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:11px;color:var(--muted);transition:.3s}
+.card:hover .badge{border-color:var(--accent);color:var(--accent)}
+.summary{margin:14px 0;color:#c6d0dc;line-height:1.45}
+.details{display:grid;gap:8px;font-size:13px}
+.details b{color:var(--muted)}
+.progress{margin-top:15px}
+.row{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px}
+.bar{height:8px;background:#1a2230;border-radius:999px;overflow:hidden;flex:1}
+.fill{height:100%;background:linear-gradient(90deg,#4c8dff,#69d5ff);transition:width .6s ease}
+.prod{background:linear-gradient(90deg,#7e57c2,#d18cff)}
+.age{position:absolute;right:12px;bottom:10px;color:#647084;font-size:10px}
+.pin{position:absolute;left:12px;bottom:10px;font-size:11px;color:#94a5ba}
+.archived .title,.archived .meta,.archived .summary,.archived .details,.archived .progress,.archived .badge{display:none}
+.open{position:absolute;inset:0;background:transparent;border:0;cursor:pointer}
+.expanded .open{inset:auto 12px 12px auto;width:90px;height:34px;background:#151d29}
+.loading{padding:40px;color:var(--muted)}
+@media(max-width:1000px){.active{grid-column:span 12}.recent{grid-column:span 6}.cooling{grid-column:span 4}.dormant{grid-column:span 3}.archived{grid-column:span 2}}
+@media(max-width:650px){.app{padding:10px}.stats{grid-template-columns:repeat(2,1fr)}header{flex-direction:column;align-items:flex-start}.active,.recent{grid-column:span 12}.cooling{grid-column:span 6}.dormant{grid-column:span 4}.archived{grid-column:span 3}}
+</style></head><body>
+<canvas id="aurora-canvas"></canvas>
+<canvas id="dotfield-canvas"></canvas>
+<div id="lock-screen"><h2>PJ-CORE Control</h2><p class="hint">Введите PIN</p><div id="pin-dots"><span></span><span></span><span></span><span></span></div><div id="keypad"><button class="key" data-n="1">1</button><button class="key" data-n="2">2</button><button class="key" data-n="3">3</button><button class="key" data-n="4">4</button><button class="key" data-n="5">5</button><button class="key" data-n="6">6</button><button class="key" data-n="7">7</button><button class="key" data-n="8">8</button><button class="key" data-n="9">9</button><button class="key key-blank"></button><button class="key" data-n="0">0</button><button class="key key-del">⌫</button></div><p id="pattern-error">Неверный PIN</p></div>
+<div class="app"><header><div class="brand"><h1>PJ-CORE CONTROL</h1><p id="subtitle">Загрузка…</p></div><div class="controls"><input id="search" placeholder="Поиск проекта"><select id="status"><option value="">Все статусы</option></select><button id="refresh">Обновить</button><button id="fullscreen">На весь экран</button></div></header><section class="stats" id="stats"></section><main class="grid" id="grid"><div class="loading">Загрузка проектов…</div></main></div>
+<script>
+/* === AURORA WEBGL SHADER (port from reactbits) === */
+(function(){
+const canvas=document.getElementById('aurora-canvas');
+const gl=canvas.getContext('webgl',{alpha:true,premultipliedAlpha:true,antialias:true});
+if(!gl){canvas.style.display='none';return;}
+gl.clearColor(0,0,0,0);
+const vs=`attribute vec2 position;void main(){gl_Position=vec4(position,0.,1.);}`;
+const fs=`precision highp float;uniform float uTime;uniform vec2 uRes;uniform vec3 uC1;uniform vec3 uC2;uniform vec3 uC3;out vec4 o;
+vec3 pm(vec3 x){return mod(((x*34.)+1.)*x,289.);}
+float sn(vec2 v){const vec4 C=vec4(.211324865405187,.366025403784439,-.577350269189626,.024390243902439);
+vec2 i=floor(v+dot(v,C.yy));vec2 x0=v-i+dot(i,C.xx);vec2 i1=x0.x>x0.y?vec2(1.,0.):vec2(0.,1.);
+vec4 x12=x0.xyxy+C.xxzz;x12.xy-=i1;i=mod(i,289.);
+vec3 p=pm(pm(i.y+vec3(0.,i1.y,1.))+i.x+vec3(0.,i1.x,1.));
+vec3 m=max(.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.);m=m*m;m=m*m;
+vec3 x=2.*fract(p*C.www)-1.;vec3 h=abs(x)-.5;vec3 ox=floor(x+.5);vec3 a0=x-ox;
+m*=1.79284291400159-.85373472095314*(a0*a0+h*h);
+vec3 g;g.x=a0.x*x0.x+h.x*x0.y;g.yz=a0.yz*x12.xz+h.yz*x12.yw;return 130.*dot(m,g);}
+void main(){vec2 uv=gl_FragCoord.xy/uRes;vec3 cs[3];cs[0]=uC1;cs[1]=uC2;cs[2]=uC3;
+float h=sn(vec2(uv.x*2.+uTime*.1,uTime*.25))*.5;h=exp(h);h=(uv.y*2.-h+.2);
+float a=smoothstep(.2-.25,.2+.25,.6*h);vec3 c=mix(cs[0],cs[1],smoothstep(0.,.5,uv.x));c=mix(c,cs[2],smoothstep(.5,1.,uv.x));
+o=vec4(c*.6*h*a,a);}`;
+function sh(t,s){const r=gl.createShader(t);gl.shaderSource(r,s);gl.compileShader(r);return r;}
+const prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);gl.useProgram(prog);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const loc=gl.getAttribLocation(prog,'position');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const uT=gl.getUniformLocation(prog,'uTime'),uR=gl.getUniformLocation(prog,'uRes');
+const uC1=gl.getUniformLocation(prog,'uC1'),uC2=gl.getUniformLocation(prog,'uC2'),uC3=gl.getUniformLocation(prog,'uC3');
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;gl.viewport(0,0,innerWidth,innerHeight);gl.uniform2f(uR,innerWidth,innerHeight);}
+window.addEventListener('resize',resize);resize();
+let t0=performance.now();
+function render(){requestAnimationFrame(render);const t=(performance.now()-t0)*.001;
+gl.uniform1f(uT,t);gl.uniform3f(uC1,.29,.15,1);gl.uniform3f(uC2,.49,.6,1);gl.uniform3f(uC3,.31,.5,1);
+gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3);}
+render();
+})();
+
+/* === DOT FIELD (dashboard background) === */
+(function(){
+const c=document.getElementById('dotfield-canvas');const x=c.getContext('2d');
+let dots=[],mx=-999,my=-999;
+function resize(){c.width=innerWidth;c.height=innerHeight;dots=[];const gap=40;
+for(let y=gap;y<c.height+gap;y+=gap)for(let xx=gap;xx<c.width+gap;xx+=gap)dots.push({x:xx,y:yy= y,ox:xx,oy:y});}
+function init(){resize();window.addEventListener('resize',resize);window.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});window.addEventListener('mouseleave',()=>{mx=-999;my=-999;});}
+init();
+function draw(){requestAnimationFrame(draw);x.clearRect(0,0,c.width,c.height);
+for(const d of dots){const dx=mx-d.x,dy=my-d.y;const dist=Math.sqrt(dx*dx+dy*dy);
+if(dist<120){const f=(1-dist/120)*25;d.x+=(d.ox+dx/dist*f-d.x)*.08;d.y+=(d.oy+dy/dist*f-d.y)*.08;}
+else{d.x+=(d.ox-d.x)*.06;d.y+=(d.oy-d.y)*.06;}
+const dx2=d.x-d.ox,dy2=d.y-d.oy;const off=Math.sqrt(dx2*dx2+dy2*dy2);
+const alpha=Math.min(.05+off*.02,.4);const r=Math.min(1.5+off*.1,3);
+x.beginPath();x.arc(d.x,d.y,r,0,7);x.fillStyle=`rgba(76,141,255,${alpha})`;x.fill();}
+if(dots.length>2500)dots=dots.slice(0,2500);}
+draw();
+})();
+
+/* === PIN LOCK === */
+const CORRECT_PIN='6773';
+let pinBuf='';
+const dots=document.querySelectorAll('#pin-dots span');
+const err=document.getElementById('pattern-error');
+const keypad=document.getElementById('keypad');
+function updateDots(){dots.forEach((d,i)=>d.classList.toggle('filled',i<pinBuf.length));}
+function checkPin(){if(pinBuf===CORRECT_PIN){unlock();}else{err.classList.add('show');dots.forEach(d=>d.parentElement.classList.add('shake'));keypad.classList.add('shake');setTimeout(()=>{dots.forEach(d=>d.parentElement.classList.remove('shake'));keypad.classList.remove('shake');pinBuf='';updateDots();err.classList.remove('show');},700);}}
+keypad.addEventListener('click',e=>{const b=e.target.closest('.key');if(!b)return;const n=b.dataset.n;if(n!==undefined){if(pinBuf.length<4){pinBuf+=n;updateDots();if(pinBuf.length===4)setTimeout(checkPin,150);}}else if(b.classList.contains('key-del')){pinBuf=pinBuf.slice(0,-1);updateDots();}});
+function unlock(){document.getElementById('lock-screen').style.display='none';document.querySelector('.app').classList.add('unlocked');load();}
+
+/* === DASHBOARD === */
+const S={data:null,expanded:null,search:'',status:''};const names={active:'Работает',development:'Разработка',design:'Проектирование',idea:'Идея',frozen:'Заморожен'};const days=x=>Math.floor((Date.now()-new Date(x))/86400000);function tier(p){if(p.pinned)return'active';let d=days(p.lastActivity);return d<=3?'active':d<=14?'recent':d<=30?'cooling':d<=90?'dormant':'archived'}function e(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}function card(p){let t=tier(p),x=S.expanded===p.id,d=days(p.lastActivity),all=x||t==='active'||t==='recent';return `<article class="card ${t} ${x?'expanded':''}"><div class="top"><div class="icon">${e(p.icon||'◼')}</div><div><div class="title">${e(p.title)}</div><div class="meta">${e(names[p.status]||p.status)} · ${e(p.owner||'')}</div></div><span class="badge">${e(p.priority||'normal')}</span></div>${t!=='archived'?`<div class="summary">${e(p.summary||'')}</div>`:''}${all?`<div class="details"><div><b>Сейчас:</b> ${e(p.currentWork||'Нет данных')}</div><div><b>Следующий шаг:</b> ${e(p.nextStep||'Не определён')}</div></div>`:''}${t!=='archived'?`<div class="progress"><div class="row"><span>MVP ${p.mvp||0}%</span><div class="bar"><div class="fill" style="width:${p.mvp||0}%"></div></div></div><div class="row"><span>PROD ${p.prod||0}%</span><div class="bar"><div class="fill prod" style="width:${p.prod||0}%"></div></div></div></div>`:''}${p.pinned?'<div class="pin">📌 закреплён</div>':''}<div class="age">${d<=0?'сегодня':d+' дн. назад'}</div><button class="open" onclick="toggle('${p.id}')">${x?'Свернуть':''}</button></article>`}function render(){let a=S.data.projects,f=a.filter(p=>(!S.status||p.status===S.status)&&(!S.search||(p.title+' '+p.summary).toLowerCase().includes(S.search)));grid.innerHTML=f.sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity)).map(card).join('')||'<div class="loading">Ничего не найдено</div>';let active=a.filter(p=>days(p.lastActivity)<=14).length,old=a.filter(p=>days(p.lastActivity)>30).length,avg=Math.round(a.reduce((s,p)=>s+(p.mvp||0),0)/a.length);stats.innerHTML=[['Проектов',a.length],['Активны 14 дней',active],['Без движения 30+ дней',old],['Средний MVP',avg+'%']].map(x=>`<div class="stat"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('')}window.toggle=id=>{S.expanded=S.expanded===id?null:id;render()};async function load(){try{let r=await fetch('data/projects.json?'+Date.now(),{cache:'no-store',credentials:'same-origin'});S.data=await r.json();subtitle.textContent='Обновлено: '+new Date(S.data.generatedAt).toLocaleString('ru-RU');let ss=[...new Set(S.data.projects.map(p=>p.status))];status.innerHTML='<option value="">Все статусы</option>'+ss.map(s=>`<option value="${s}">${names[s]||s}</option>`).join('');render()}catch(err){grid.innerHTML='<div class="loading">Запустите сайт через локальный HTTP-сервер.</div>'}}search.oninput=x=>{S.search=x.target.value.toLowerCase();render()};status.onchange=x=>{S.status=x.target.value;render()};refresh.onclick=load;fullscreen.onclick=()=>document.documentElement.requestFullscreen?.();
+</script></body></html>
