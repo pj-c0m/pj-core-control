@@ -7,24 +7,16 @@
 /* === DOT FIELD (dashboard bg) === */
 #dotfield-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5}
 
-/* === LOCK SCREEN === */
-#lock-screen{position:fixed;inset:0;background:rgba(8,11,16,.55);backdrop-filter:blur(2px);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+/* === LOCK SCREEN (pattern lock) === */
+#lock-screen{position:fixed;inset:0;background:rgba(8,11,16,.55);backdrop-filter:blur(2px);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
 #lock-screen h2{margin:0;font-size:clamp(22px,5vw,32px);letter-spacing:2px;background:linear-gradient(90deg,#4c8dff,#69d5ff,#b14cff,#4c8dff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:gradient-shift 4s linear infinite}
 @keyframes gradient-shift{0%{background-position:0% 50%}100%{background-position:300% 50%}}
 #lock-screen .hint{margin:0;color:var(--muted);font-size:14px;text-align:center;padding:0 20px}
-#pin-dots{display:flex;gap:16px;margin:8px 0 4px}
-#pin-dots span{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);background:#0c1118;transition:.2s}
-#pin-dots span.filled{background:var(--accent);border-color:#69d5ff;box-shadow:0 0 12px #4c8dff80,0 0 4px #69d5ff}
-#keypad{display:grid;grid-template-columns:repeat(3,72px);grid-template-rows:repeat(4,72px);gap:14px;margin-top:10px}
-.key{width:72px;height:72px;border-radius:50%;border:1px solid var(--line);background:rgba(17,24,36,.7);backdrop-filter:blur(8px);color:var(--text);font-size:28px;font-weight:600;display:grid;place-items:center;cursor:pointer;transition:.15s;user-select:none;-webkit-user-select:none;touch-action:manipulation}
-.key:hover{border-color:var(--accent);box-shadow:0 0 20px #4c8dff30}
-.key:active{background:var(--accent);color:#fff;transform:scale(.92);border-color:#69d5ff;box-shadow:0 0 25px #4c8dff60}
-.key-blank{visibility:hidden}
-.key-del{font-size:24px;color:var(--muted)}
+#pattern-canvas{display:block;cursor:pointer;touch-action:none}
 #pattern-error{margin:0;color:#ff6b6b;font-size:14px;opacity:0;transition:opacity .3s;height:22px;font-weight:600}
 #pattern-error.show{opacity:1}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px)}40%{transform:translateX(12px)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
-#pin-dots.shake,#keypad.shake{animation:shake .45s ease}
+#pattern-canvas.shake{animation:shake .45s ease}
 
 /* === DASHBOARD === */
 .app{min-height:100vh;padding:18px;display:none;position:relative;z-index:1}
@@ -80,7 +72,7 @@ button:hover,select:hover,input:hover{border-color:#3a4658}
 </style></head><body>
 <canvas id="aurora-canvas"></canvas>
 <canvas id="dotfield-canvas"></canvas>
-<div id="lock-screen"><h2>PJ-CORE Control</h2><p class="hint">Введите PIN</p><div id="pin-dots"><span></span><span></span><span></span><span></span></div><div id="keypad"><button class="key" data-n="1">1</button><button class="key" data-n="2">2</button><button class="key" data-n="3">3</button><button class="key" data-n="4">4</button><button class="key" data-n="5">5</button><button class="key" data-n="6">6</button><button class="key" data-n="7">7</button><button class="key" data-n="8">8</button><button class="key" data-n="9">9</button><button class="key key-blank"></button><button class="key" data-n="0">0</button><button class="key key-del">⌫</button></div><p id="pattern-error">Неверный PIN</p></div>
+<div id="lock-screen"><h2>PJ-CORE Control</h2><p class="hint">Нарисуйте граф-ключ</p><canvas id="pattern-canvas" width="300" height="300"></canvas><p id="pattern-error">Неверный ключ</p></div>
 <div class="app"><header><div class="brand"><h1>PJ-CORE CONTROL</h1><p id="subtitle">Загрузка…</p></div><div class="controls"><input id="search" placeholder="Поиск проекта"><select id="status"><option value="">Все статусы</option></select><button id="refresh">Обновить</button><button id="fullscreen">На весь экран</button></div></header><section class="stats" id="stats"></section><main class="grid" id="grid"><div class="loading">Загрузка проектов…</div></main></div>
 <script>
 /* === AURORA WEBGL SHADER (port from reactbits) === */
@@ -125,7 +117,7 @@ render();
 const c=document.getElementById('dotfield-canvas');const x=c.getContext('2d');
 let dots=[],mx=-999,my=-999;
 function resize(){c.width=innerWidth;c.height=innerHeight;dots=[];const gap=40;
-for(let y=gap;y<c.height+gap;y+=gap)for(let xx=gap;xx<c.width+gap;xx+=gap)dots.push({x:xx,y:yy= y,ox:xx,oy:y});}
+for(let y=gap;y<c.height+gap;y+=gap)for(let xx=gap;xx<c.width+gap;xx+=gap)dots.push({x:xx,y:y,ox:xx,oy:y});}
 function init(){resize();window.addEventListener('resize',resize);window.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});window.addEventListener('mouseleave',()=>{mx=-999;my=-999;});}
 init();
 function draw(){requestAnimationFrame(draw);x.clearRect(0,0,c.width,c.height);
@@ -139,17 +131,194 @@ if(dots.length>2500)dots=dots.slice(0,2500);}
 draw();
 })();
 
-/* === PIN LOCK === */
-const CORRECT_PIN='6773';
-let pinBuf='';
-const dots=document.querySelectorAll('#pin-dots span');
-const err=document.getElementById('pattern-error');
-const keypad=document.getElementById('keypad');
-function updateDots(){dots.forEach((d,i)=>d.classList.toggle('filled',i<pinBuf.length));}
-function checkPin(){if(pinBuf===CORRECT_PIN){unlock();}else{err.classList.add('show');dots.forEach(d=>d.parentElement.classList.add('shake'));keypad.classList.add('shake');setTimeout(()=>{dots.forEach(d=>d.parentElement.classList.remove('shake'));keypad.classList.remove('shake');pinBuf='';updateDots();err.classList.remove('show');},700);}}
-keypad.addEventListener('click',e=>{const b=e.target.closest('.key');if(!b)return;const n=b.dataset.n;if(n!==undefined){if(pinBuf.length<4){pinBuf+=n;updateDots();if(pinBuf.length===4)setTimeout(checkPin,150);}}else if(b.classList.contains('key-del')){pinBuf=pinBuf.slice(0,-1);updateDots();}});
-function unlock(){document.getElementById('lock-screen').style.display='none';document.querySelector('.app').classList.add('unlocked');load();}
+/* === PATTERN LOCK (граф-ключ) === */
+const CORRECT_PATTERN = '1,4,7,8,9,6,3'; // Z-образный свайп
+const PATTERN_HASH = 'a99b532c098c1a2495049a267f2c090534866c2f8d2d4c8fdfb1182be1f1e6a9';
+
+const patternCanvas = document.getElementById('pattern-canvas');
+const pctx = patternCanvas.getContext('2d');
+const patternErr = document.getElementById('pattern-error');
+
+const DOT_R = 18;
+const DOT_GAP = 80;
+const GRID_OFFSET = 60;
+const dots = [];
+let pattern = [];
+let drawing = false;
+let touchId = null;
+
+// Build 3x3 dot positions
+for (let row = 0; row < 3; row++) {
+  for (let col = 0; col < 3; col++) {
+    dots.push({
+      id: row * 3 + col + 1,
+      x: GRID_OFFSET + col * DOT_GAP,
+      y: GRID_OFFSET + row * DOT_GAP
+    });
+  }
+}
+
+function getDot(px, py) {
+  for (const d of dots) {
+    const dx = px - d.x, dy = py - d.y;
+    if (Math.sqrt(dx * dx + dy * dy) < DOT_R + 10) return d;
+  }
+  return null;
+}
+
+function drawPattern() {
+  pctx.clearRect(0, 0, 300, 300);
+
+  // Draw lines between connected dots
+  if (pattern.length > 1) {
+    pctx.beginPath();
+    pctx.strokeStyle = '#4c8dff';
+    pctx.lineWidth = 4;
+    pctx.lineCap = 'round';
+    pctx.lineJoin = 'round';
+    pctx.shadowColor = '#4c8dff80';
+    pctx.shadowBlur = 12;
+    for (let i = 0; i < pattern.length - 1; i++) {
+      const a = dots.find(d => d.id === pattern[i]);
+      const b = dots.find(d => d.id === pattern[i + 1]);
+      if (a && b) {
+        pctx.moveTo(a.x, a.y);
+        pctx.lineTo(b.x, b.y);
+      }
+    }
+    pctx.stroke();
+    pctx.shadowBlur = 0;
+  }
+
+  // Draw dots
+  for (const d of dots) {
+    const active = pattern.includes(d.id);
+    pctx.beginPath();
+    pctx.arc(d.x, d.y, DOT_R, 0, Math.PI * 2);
+    pctx.fillStyle = active ? '#4c8dff' : '#0c1118';
+    pctx.strokeStyle = active ? '#69d5ff' : '#232b38';
+    pctx.lineWidth = 2;
+    pctx.fill();
+    pctx.stroke();
+
+    if (active) {
+      pctx.beginPath();
+      pctx.arc(d.x, d.y, DOT_R * 0.4, 0, Math.PI * 2);
+      pctx.fillStyle = '#fff';
+      pctx.fill();
+    }
+  }
+}
+
+function getEventPos(e) {
+  if (e.touches) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
+function canvasPos(e) {
+  const rect = patternCanvas.getBoundingClientRect();
+  const pos = getEventPos(e);
+  return { x: pos.x - rect.left, y: pos.y - rect.top };
+}
+
+function handleStart(e) {
+  e.preventDefault();
+  const pos = canvasPos(e);
+  const dot = getDot(pos.x, pos.y);
+  if (dot) {
+    drawing = true;
+    pattern = [dot.id];
+    if (e.touches) touchId = e.touches[0].identifier;
+    drawPattern();
+  }
+}
+
+function handleMove(e) {
+  if (!drawing) return;
+  e.preventDefault();
+
+  // For touch events, find the correct touch
+  let pos;
+  if (e.touches && touchId !== null) {
+    for (let i = 0; i < e.touches.length; i++) {
+      if (e.touches[i].identifier === touchId) {
+        const rect = patternCanvas.getBoundingClientRect();
+        pos = { x: e.touches[i].clientX - rect.left, y: e.touches[i].clientY - rect.top };
+        break;
+      }
+    }
+    if (!pos) return;
+  } else {
+    pos = canvasPos(e);
+  }
+
+  const dot = getDot(pos.x, pos.y);
+  if (dot && !pattern.includes(dot.id)) {
+    pattern.push(dot.id);
+    drawPattern();
+  }
+}
+
+function handleEnd(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  drawing = false;
+  touchId = null;
+
+  const entered = pattern.join(',');
+  if (entered === CORRECT_PATTERN) {
+    unlock();
+  } else {
+    patternErr.classList.add('show');
+    patternCanvas.classList.add('shake');
+    setTimeout(() => {
+      pattern = [];
+      drawPattern();
+      patternCanvas.classList.remove('shake');
+      patternErr.classList.remove('show');
+    }, 700);
+  }
+}
+
+patternCanvas.addEventListener('mousedown', handleStart);
+patternCanvas.addEventListener('mousemove', handleMove);
+patternCanvas.addEventListener('mouseup', handleEnd);
+patternCanvas.addEventListener('mouseleave', handleEnd);
+patternCanvas.addEventListener('touchstart', handleStart, { passive: false });
+patternCanvas.addEventListener('touchmove', handleMove, { passive: false });
+patternCanvas.addEventListener('touchend', handleEnd);
+patternCanvas.addEventListener('touchcancel', handleEnd);
+
+drawPattern();
+
+/* === AUTH CHECK === */
+async function checkAuth() {
+  try {
+    const r = await fetch('/check', { credentials: 'include' });
+    if (r.ok) {
+      // Cookie is valid — show pattern lock
+      document.getElementById('lock-screen').style.display = 'flex';
+    } else {
+      // No valid cookie — redirect to login
+      window.location.href = '/login';
+    }
+  } catch (e) {
+    // Network error — show pattern lock anyway (might be offline)
+    document.getElementById('lock-screen').style.display = 'flex';
+  }
+}
+
+function unlock() {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.querySelector('.app').classList.add('unlocked');
+  load();
+}
 
 /* === DASHBOARD === */
 const S={data:null,expanded:null,search:'',status:''};const names={active:'Работает',development:'Разработка',design:'Проектирование',idea:'Идея',frozen:'Заморожен'};const days=x=>Math.floor((Date.now()-new Date(x))/86400000);function tier(p){if(p.pinned)return'active';let d=days(p.lastActivity);return d<=3?'active':d<=14?'recent':d<=30?'cooling':d<=90?'dormant':'archived'}function e(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}function card(p){let t=tier(p),x=S.expanded===p.id,d=days(p.lastActivity),all=x||t==='active'||t==='recent';return `<article class="card ${t} ${x?'expanded':''}"><div class="top"><div class="icon">${e(p.icon||'◼')}</div><div><div class="title">${e(p.title)}</div><div class="meta">${e(names[p.status]||p.status)} · ${e(p.owner||'')}</div></div><span class="badge">${e(p.priority||'normal')}</span></div>${t!=='archived'?`<div class="summary">${e(p.summary||'')}</div>`:''}${all?`<div class="details"><div><b>Сейчас:</b> ${e(p.currentWork||'Нет данных')}</div><div><b>Следующий шаг:</b> ${e(p.nextStep||'Не определён')}</div></div>`:''}${t!=='archived'?`<div class="progress"><div class="row"><span>MVP ${p.mvp||0}%</span><div class="bar"><div class="fill" style="width:${p.mvp||0}%"></div></div></div><div class="row"><span>PROD ${p.prod||0}%</span><div class="bar"><div class="fill prod" style="width:${p.prod||0}%"></div></div></div></div>`:''}${p.pinned?'<div class="pin">📌 закреплён</div>':''}<div class="age">${d<=0?'сегодня':d+' дн. назад'}</div><button class="open" onclick="toggle('${p.id}')">${x?'Свернуть':''}</button></article>`}function render(){let a=S.data.projects,f=a.filter(p=>(!S.status||p.status===S.status)&&(!S.search||(p.title+' '+p.summary).toLowerCase().includes(S.search)));grid.innerHTML=f.sort((a,b)=>new Date(b.lastActivity)-new Date(a.lastActivity)).map(card).join('')||'<div class="loading">Ничего не найдено</div>';let active=a.filter(p=>days(p.lastActivity)<=14).length,old=a.filter(p=>days(p.lastActivity)>30).length,avg=Math.round(a.reduce((s,p)=>s+(p.mvp||0),0)/a.length);stats.innerHTML=[['Проектов',a.length],['Активны 14 дней',active],['Без движения 30+ дней',old],['Средний MVP',avg+'%']].map(x=>`<div class="stat"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('')}window.toggle=id=>{S.expanded=S.expanded===id?null:id;render()};async function load(){try{let r=await fetch('data/projects.json?'+Date.now(),{cache:'no-store',credentials:'same-origin'});S.data=await r.json();subtitle.textContent='Обновлено: '+new Date(S.data.generatedAt).toLocaleString('ru-RU');let ss=[...new Set(S.data.projects.map(p=>p.status))];status.innerHTML='<option value="">Все статусы</option>'+ss.map(s=>`<option value="${s}">${names[s]||s}</option>`).join('');render()}catch(err){grid.innerHTML='<div class="loading">Запустите сайт через локальный HTTP-сервер.</div>'}}search.oninput=x=>{S.search=x.target.value.toLowerCase();render()};status.onchange=x=>{S.status=x.target.value;render()};refresh.onclick=load;fullscreen.onclick=()=>document.documentElement.requestFullscreen?.();
+
+// Start: check auth cookie, then show pattern lock
+checkAuth();
 </script></body></html>
